@@ -39,3 +39,23 @@ Role: aidlc-delivery-agent (senior engineering manager — team formation, mob c
 **Outputs produced:** team-formation-questions, team-assessment, skill-matrix, mob-composition.
 
 **Kept learning:** In greenfield enterprise ideation with no roster, default to AI-mob stream-aligned composition and record human-specialist slots as dependencies rather than blocking the pipeline.
+
+---
+
+# AI-DLC Design Agent — refined-mockups Stage Memory
+
+## Interpretations
+- 2026-09-09T23:47Z — I lack direct MCP graph tools; delegated all artifact reads and all create_artifact/link_artifacts/send_output/collect_metric recording to the `aidlc` subagent which holds the runtime MCP surface. Authored artifact content myself; the subagent records it verbatim.
+- 2026-09-09T23:47Z — Designed the refined mockups to the AUTHORITATIVE `requirements` artifact (post-Q4 resolution) rather than the older `wireframes`/`user-flow`, per the message precedence rule (recorded artifacts refine the raw request; requirements is the later resolution). Requirements mandate: strict two-stage approve/reject-only, half-day granularity, SLA reminder/escalation, NO `returned` state, NO HR override.
+
+## Deviations
+- 2026-09-09T23:47Z — Dropped the `RETURNED` state and the HR `Override` action that appear in the `wireframes` and `user-flow` artifacts. Reason: the `requirements` functional-requirements section (Q4 resolution) explicitly removes both from v1. Screens 5 (Team Lead) and 6 (HR) are re-specified as Approve/Reject-only. This is a scope reconciliation, not a design preference — flagged as a clarifying question to the human.
+- 2026-09-09T23:47Z — Added half-day granularity to the New Request form (start/end + AM/PM half-day toggles) because requirements specify half-day granularity (Q3); the wireframe form showed whole-day only.
+
+## Tradeoffs
+- 2026-09-09T23:47Z — Chose an inline decision panel on the Request Detail screen (rather than a separate modal per action) for Validate/Approve/Reject, reserving modals only for the irreversible Approve confirmation. Keeps the decision in context with the request data (recognition over recall) and avoids nested modals. Alternative (modal-per-action) rejected as heavier and more click-costly.
+- 2026-09-09T23:47Z — Mapped to a generic design-system token set (spacing scale 4/8/16/24/32/48, role-based semantic color tokens) rather than naming a specific component library, since no design system was specified in inputs. Keeps developer-agent free to pick the stack; tokens are framework-agnostic.
+
+## Open questions
+- 2026-09-09T23:47Z — Confirm with human: the wireframes/user-flow depict RETURNED + HR override but requirements remove them for v1. I designed to requirements (no RETURNED, no override). Surfaced as a clarifying question before the gate.
+- 2026-09-09T23:47Z — SLA reminder/escalation is a functional requirement but story-sla-escalation is could-have; I include it in notification/interaction specs as a should-render surface but keep it out of the core queue chrome. Confirm at application-design.
