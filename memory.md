@@ -1,3 +1,22 @@
+# AI-DLC Product Agent — user-stories Stage Memory
+
+## Interpretations
+- 2026-09-09T23:37Z — Authored artifact content locally and delegated the actual create_artifact/link_artifacts recording to the `aidlc` subagent, which holds the runtime MCP surface; my own tool list lacks those MCP tools. Content was recorded verbatim.
+- 2026-09-09T23:37Z — Used the compiled graph context (requirement gists + derived-item ids) as the requirements source of truth, since the requirements body lives in the artifact graph and not on the working-tree disk.
+
+## Deviations
+- 2026-09-09T23:37Z — Added a CONSUMES edge from user-stories-assessment → requirements and → team-practices (not only stories/personas); the assessment prose genuinely references both. Can be pruned if the coverage model expects the assessment to not consume them.
+
+## Tradeoffs
+- 2026-09-09T23:37Z — Chose breakdown "by workflow step across personas" (vertical slices) over by-persona or by-domain; keeps each story an end-to-end demoable slice aligned with the team's walking-skeleton-first practice. Alternative (by-persona) risked horizontal-layer stories.
+- 2026-09-09T23:37Z — Set SLA reminder/escalation as could-have and overlap-indicator/notifications/balance as should-have to keep the must-have set to the core two-stage approval critical path (SSO → RBAC → submit → validate → approve → audit + PII), so the MVP/walking-skeleton boundary stays thin.
+
+## Open questions
+- 2026-09-09T23:37Z — req-nfr-availability-tbd is a dependency (targets not set) and req-nfr-concurrency has a capacity target still to confirm; no dedicated stories authored for these pending NFR quantification — confirm at nfr-requirements.
+- 2026-09-09T23:37Z — Confirm story `covers:` requirement ids resolve against the live requirements artifact item ids (authored from graph-context derived items).
+
+---
+
 # AI-DLC Delivery Agent — Memory Diary
 
 ## Intent: Vacation Request App (enterprise, ideation phase)
