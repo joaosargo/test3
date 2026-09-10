@@ -60,3 +60,24 @@ Role: aidlc-delivery-agent (senior engineering manager — team formation, mob c
 - 2026-09-09T23:47Z — Confirm with human: the wireframes/user-flow depict RETURNED + HR override but requirements remove them for v1. I designed to requirements (no RETURNED, no override). Surfaced as a clarifying question before the gate.
 - 2026-09-09T23:53Z — RESOLVED: human selected "Design to requirements: approve/reject only, no RETURNED state, no HR override (recommended)". Proceeding on that basis; RETURNED and override are fully removed from the refined mockups and interaction spec.
 - 2026-09-09T23:47Z — SLA reminder/escalation is a functional requirement but story-sla-escalation is could-have; I include it in notification/interaction specs as a should-render surface but keep it out of the core queue chrome. Confirm at application-design.
+
+---
+
+# AI-DLC AWS Platform Agent — infrastructure-design Stage Memory (unit-platform-auth)
+
+## Interpretations
+- 2026-09-10T10:44:00Z — Chose ECS Fargate (containers) over Lambda for the app tier: the modular-monolith host runs a long-lived web process with an in-process JWKS cache and a ≤5ms hot-path validation budget, which fits a warm container fleet better than per-request Lambda cold starts. Serverless recorded as a documented alternative.
+- 2026-09-10T10:44:00Z — Selected ElastiCache for Redis (Serverless) as the shared session/revocation store per tech-stack-decisions ADR-AUTH-03 (Redis-class, HA/Multi-AZ, TTL eviction, fail-closed reads).
+- 2026-09-10T10:44:00Z — Residency region left parameterized (config-driven, region-pinned) because the availability/residency region is TBD upstream (Q11); infra written region-agnostic with a single mandated-region pin at deploy time rather than blocking.
+- 2026-09-10T10:44:00Z — CDK (TypeScript) selected as IaC per AWS CDK Best Practices knowledge; network/data/compute/monitoring stack split by lifecycle.
+
+## Deviations
+- 2026-09-10T10:44:00Z — Produced shared-infrastructure.md even though this run is single-unit-scoped: the session/revocation store and managed secrets store are explicitly cross-unit shared resources per logical-components (revocation visibility across units, cross-cutting secrets), so the CONDITIONAL artifact applies.
+
+## Tradeoffs
+- 2026-09-10T10:44:00Z — ElastiCache Redis Serverless over a fixed 2-node cluster for dev/staging: pay-per-use suits the bursty low login volume and ~500-user footprint; production may pin a Multi-AZ replication group if steady-state cost modelling favours reserved nodes. Documented in infrastructure-services.
+- 2026-09-10T10:44:00Z — ARM/Graviton (arm64) Fargate for ~20% price-performance gain; the certified OIDC library must be arch-portable (it is — pure managed-runtime), so no x86 lock-in.
+
+## Open questions
+- 2026-09-10T10:44:00Z — Mandated residency region and the composite availability target (Q11) still TBD upstream; confirm before environment-provisioning hardens region pin and Multi-AZ count.
+- 2026-09-10T10:44:00Z — Confirm corporate IdP reachability from private subnets (public IdP endpoint via NAT vs. private connectivity) at environment-provisioning.

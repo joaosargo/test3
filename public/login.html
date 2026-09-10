@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'" />
+    <title>Vacation Request — Sign in</title>
+  </head>
+  <body>
+    <main data-testid="login-page">
+      <h1>Vacation Request</h1>
+      <p>Sign in with your corporate account to continue.</p>
+
+      <!--
+        There is NO local username/password form: authentication is
+        SSO-only (req-constraint-sso-mandatory). This button simply starts
+        the server-side SSO handshake at /auth/login.
+      -->
+      <a
+        href="/auth/login"
+        role="button"
+        data-testid="login-sso-button"
+      >
+        Sign in with corporate SSO
+      </a>
+
+      <p id="login-error" data-testid="login-error-message" hidden></p>
+    </main>
+  </body>
+</html>
