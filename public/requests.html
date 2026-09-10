@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Vacation Requests</title>
+    <style>
+      body { font-family: system-ui, sans-serif; margin: 2rem; max-width: 60rem; }
+      section { border: 1px solid #ddd; border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 1.5rem; }
+      h1 { font-size: 1.4rem; }
+      h2 { font-size: 1.1rem; margin-top: 0; }
+      label { display: block; margin: 0.5rem 0 0.15rem; font-weight: 600; }
+      input, textarea { width: 100%; padding: 0.4rem; box-sizing: border-box; }
+      button { margin-top: 0.75rem; margin-right: 0.5rem; padding: 0.45rem 0.9rem; cursor: pointer; }
+      .hint { color: #555; font-size: 0.85rem; }
+      .badge { display: inline-block; padding: 0.1rem 0.5rem; border-radius: 999px; background: #eee; font-size: 0.8rem; }
+      .hidden { display: none; }
+    </style>
+  </head>
+  <body data-testid="requests-page">
+    <h1>Vacation Requests</h1>
+    <p class="hint">
+      Signed in via corporate SSO. Role-driven controls below are UX hints only —
+      every action is authorized server-side.
+    </p>
+
+    <!-- Employee: submit a request (story-submit-request) -->
+    <section data-testid="submit-request-section">
+      <h2>Request time off</h2>
+      <form data-testid="vacation-request-form">
+        <label for="startDate">Start date</label>
+        <input type="date" id="startDate" name="startDate" data-testid="request-form-start-date" required />
+
+        <label for="endDate">End date</label>
+        <input type="date" id="endDate" name="endDate" data-testid="request-form-end-date" required />
+
+        <label for="reason">Reason (optional)</label>
+        <textarea id="reason" name="reason" rows="2" maxlength="1000" data-testid="request-form-reason"></textarea>
+
+        <p class="hint" data-testid="request-form-balance-hint">
+          Balance shown here is advisory only and never blocks submission.
+        </p>
+
+        <button type="submit" data-testid="request-form-submit-button">Submit request</button>
+        <span class="hidden" data-testid="request-form-error" role="alert"></span>
+      </form>
+    </section>
+
+    <!-- Employee: my requests + status (req-status-tracking) -->
+    <section data-testid="my-requests-section">
+      <h2>My requests</h2>
+      <ul data-testid="my-requests-list"></ul>
+    </section>
+
+    <!-- Team lead: validate/reject queue (story-lead-validate) -->
+    <section class="hidden" data-testid="lead-queue-section">
+      <h2>Team lead queue</h2>
+      <ul data-testid="lead-queue-list">
+        <!-- Each item renders a review card with an advisory overlap/balance hint
+             and a decision bar. Template shown for automation targeting. -->
+        <li class="hidden" data-testid="lead-review-card-template">
+          <span class="badge" data-testid="request-status-badge"></span>
+          <span class="hint" data-testid="overlap-indicator-badge"></span>
+          <span class="hint" data-testid="balance-hint"></span>
+          <button data-testid="lead-validate-button">Validate</button>
+          <button data-testid="lead-reject-button">Reject</button>
+        </li>
+      </ul>
+    </section>
+
+    <!-- HR: approve/reject queue (story-hr-approve) -->
+    <section class="hidden" data-testid="hr-queue-section">
+      <h2>HR queue</h2>
+      <ul data-testid="hr-queue-list">
+        <li class="hidden" data-testid="hr-review-card-template">
+          <span class="badge" data-testid="request-status-badge"></span>
+          <button data-testid="hr-approve-button">Approve</button>
+          <button data-testid="hr-reject-button">Reject</button>
+        </li>
+      </ul>
+    </section>
+
+    <!-- Optimistic-concurrency conflict banner (BR-INV-3) -->
+    <div class="hidden" data-testid="stale-state-banner" role="alert">
+      This request changed since you opened it — review again.
+    </div>
+
+    <script type="module">
+      // Minimal client wiring. The server is authoritative; client validation
+      // mirrors BR-VAL-* purely for UX. No client-side authorization is relied
+      // upon for security — hidden controls are convenience only.
+      const form = document.querySelector('[data-testid="vacation-request-form"]');
+      const errorEl = document.querySelector('[data-testid="request-form-error"]');
+
+      form?.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        errorEl.classList.add('hidden');
+        const body = {
+          startDate: form.startDate.value,
+          endDate: form.endDate.value,
+          reason: form.reason.value || undefined,
+        };
+        try {
+          const res = await fetch('/requests', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify(body),
+          });
+          if (res.status === 201) {
+            window.location.reload();
+            return;
+          }
+          const payload = await res.json().catch(() => ({}));
+          errorEl.textContent = payload?.error?.message ?? 'Could not submit request.';
+          errorEl.classList.remove('hidden');
+        } catch {
+          errorEl.textContent = 'Network error — please try again.';
+          errorEl.classList.remove('hidden');
+        }
+      });
+    </script>
+  </body>
+</html>
