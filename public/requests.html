@@ -47,9 +47,49 @@
     </section>
 
     <!-- Employee: my requests + status (req-status-tracking) -->
+    <!-- Read-only status surface owned by unit-status-query (story-status-tracking).
+         Supplies the data + timeline detail for the workflow unit's list shell.
+         All visibility is server-authoritative (BR-SQ-1..3); the client renders
+         only what the scoped endpoints return and never filters for security. -->
     <section data-testid="my-requests-section">
       <h2>My requests</h2>
-      <ul data-testid="my-requests-list"></ul>
+
+      <!-- Status filter bar (BR-SQ-12). Options are the five closed statuses + All. -->
+      <div data-testid="status-filter-bar">
+        <label for="status-filter">Filter by status</label>
+        <select id="status-filter" data-testid="status-filter-select">
+          <option value="">All</option>
+          <option value="Submitted">Submitted</option>
+          <option value="Validated">Validated</option>
+          <option value="Approved">Approved</option>
+          <option value="Rejected">Rejected</option>
+          <option value="Withdrawn">Withdrawn</option>
+        </select>
+      </div>
+
+      <ul data-testid="my-requests-list">
+        <!-- One <RequestSummaryRow> per RequestSummaryView (server-ordered,
+             lastUpdatedAtMs desc, BR-SQ-10). Template shown for automation. -->
+        <li class="hidden" data-testid="request-summary-row-template">
+          <span class="badge" data-testid="request-status-badge"></span>
+          <span class="hint" data-testid="request-summary-dates"></span>
+          <button data-testid="request-timeline-expand-button">View timeline</button>
+          <!-- <RequestTimelinePanel>: lazy-loads GET /status/requests/:id/timeline -->
+          <div class="hidden" data-testid="request-timeline-panel">
+            <ol data-testid="request-timeline-list">
+              <!-- One <TimelineEntryItem> per TimelineEntry (chronological, BR-SQ-11).
+                   `reason` rendered iff the server included it (role-gated, BR-SQ-6). -->
+              <li class="hidden" data-testid="timeline-entry-item-template">
+                <span data-testid="timeline-entry-transition"></span>
+                <span class="hint" data-testid="timeline-entry-timestamp"></span>
+                <span class="hint" data-testid="timeline-entry-reason"></span>
+              </li>
+            </ol>
+          </div>
+        </li>
+      </ul>
+
+      <span class="hidden" data-testid="status-error" role="alert"></span>
     </section>
 
     <!-- Team lead: validate/reject queue (story-lead-validate) -->
@@ -118,6 +158,119 @@
           errorEl.classList.remove('hidden');
         }
       });
+
+      // --- Read-only status surface (unit-status-query; story-status-tracking) ---
+      // Fetches the caller's own scoped list and lazily loads a request's
+      // timeline on expand. The server is authoritative for both which requests
+      // are visible and whether a reason is shown (BR-SQ-1..7); the client never
+      // filters for security and renders `reason` only when the server sent it.
+      const listEl = document.querySelector('[data-testid="my-requests-list"]');
+      const rowTemplate = document.querySelector('[data-testid="request-summary-row-template"]');
+      const entryTemplate = document.querySelector('[data-testid="timeline-entry-item-template"]');
+      const filterSelect = document.querySelector('[data-testid="status-filter-select"]');
+      const statusErrorEl = document.querySelector('[data-testid="status-error"]');
+
+      /** Load the owner's requests, optionally narrowed by the status filter. */
+      async function loadMyRequests() {
+        if (!listEl || !rowTemplate) return;
+        statusErrorEl?.classList.add('hidden');
+        const status = filterSelect?.value || '';
+        const url = status ? `/status/requests?status=${encodeURIComponent(status)}` : '/status/requests';
+        try {
+          const res = await fetch(url, { headers: { accept: 'application/json' } });
+          if (res.status === 401) {
+            window.location.assign('/auth/login');
+            return;
+          }
+          if (!res.ok) {
+            showStatusError('Could not load your requests.');
+            return;
+          }
+          const payload = await res.json().catch(() => ({ items: [] }));
+          renderRows(Array.isArray(payload.items) ? payload.items : []);
+        } catch {
+          showStatusError('Network error — please try again.');
+        }
+      }
+
+      function renderRows(items) {
+        // Clear previous rows (keep the hidden template).
+        listEl.querySelectorAll('[data-testid="request-summary-row"]').forEach((n) => n.remove());
+        for (const item of items) {
+          const row = rowTemplate.cloneNode(true);
+          row.classList.remove('hidden');
+          row.setAttribute('data-testid', 'request-summary-row');
+          row.setAttribute('data-request-id', item.id);
+          const badge = row.querySelector('[data-testid="request-status-badge"]');
+          if (badge) {
+            badge.textContent =
+              item.status === 'Rejected' && item.rejectedStage
+                ? `Rejected · ${item.rejectedStage === 'TeamLead' ? 'Team Lead' : 'HR'}`
+                : item.status;
+          }
+          const dates = row.querySelector('[data-testid="request-summary-dates"]');
+          if (dates) dates.textContent = `${item.dates.startDate} → ${item.dates.endDate}`;
+          wireTimeline(row, item.id);
+          listEl.appendChild(row);
+        }
+      }
+
+      /** Wire the expand button to lazy-load and render the request timeline. */
+      function wireTimeline(row, requestId) {
+        const button = row.querySelector('[data-testid="request-timeline-expand-button"]');
+        const panel = row.querySelector('[data-testid="request-timeline-panel"]');
+        const timelineList = row.querySelector('[data-testid="request-timeline-list"]');
+        button?.addEventListener('click', async () => {
+          if (!panel || !timelineList) return;
+          if (!panel.classList.contains('hidden')) {
+            panel.classList.add('hidden');
+            return;
+          }
+          try {
+            const res = await fetch(`/status/requests/${encodeURIComponent(requestId)}/timeline`, {
+              headers: { accept: 'application/json' },
+            });
+            if (res.status === 401) return void window.location.assign('/auth/login');
+            if (res.status === 404) return void showStatusError('Request not found.');
+            if (!res.ok) return void showStatusError('You are not permitted to view this.');
+            const view = await res.json();
+            renderTimeline(timelineList, Array.isArray(view.timeline) ? view.timeline : []);
+            panel.classList.remove('hidden');
+          } catch {
+            showStatusError('Network error — please try again.');
+          }
+        });
+      }
+
+      function renderTimeline(container, entries) {
+        if (!entryTemplate) return;
+        container.querySelectorAll('[data-testid="timeline-entry-item"]').forEach((n) => n.remove());
+        for (const entry of entries) {
+          const item = entryTemplate.cloneNode(true);
+          item.classList.remove('hidden');
+          item.setAttribute('data-testid', 'timeline-entry-item');
+          const transition = item.querySelector('[data-testid="timeline-entry-transition"]');
+          if (transition) transition.textContent = `${entry.from ?? '—'} → ${entry.to}`;
+          const timestamp = item.querySelector('[data-testid="timeline-entry-timestamp"]');
+          if (timestamp) timestamp.textContent = new Date(entry.atMs).toISOString();
+          const reason = item.querySelector('[data-testid="timeline-entry-reason"]');
+          // Render reason ONLY when the server included it (role-gated, BR-SQ-6).
+          if (reason) {
+            if (entry.reason !== undefined && entry.reason !== null) reason.textContent = entry.reason;
+            else reason.remove();
+          }
+          container.appendChild(item);
+        }
+      }
+
+      function showStatusError(message) {
+        if (!statusErrorEl) return;
+        statusErrorEl.textContent = message;
+        statusErrorEl.classList.remove('hidden');
+      }
+
+      filterSelect?.addEventListener('change', loadMyRequests);
+      loadMyRequests();
     </script>
   </body>
 </html>
