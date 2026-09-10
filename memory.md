@@ -81,3 +81,24 @@ Role: aidlc-delivery-agent (senior engineering manager — team formation, mob c
 ## Open questions
 - 2026-09-10T10:44:00Z — Mandated residency region and the composite availability target (Q11) still TBD upstream; confirm before environment-provisioning hardens region pin and Multi-AZ count.
 - 2026-09-10T10:44:00Z — Confirm corporate IdP reachability from private subnets (public IdP endpoint via NAT vs. private connectivity) at environment-provisioning.
+
+---
+
+# AI-DLC Developer Agent — code-generation Stage Memory (unit-request-workflow)
+
+## Interpretations
+- 2026-09-10T13:36Z — The `create_artifact`/`send_output`/`collect_metric` MCP tools are NOT in this run's tool surface, so the `code-generation-plan` and `code-summary` methodology artifacts were written to their on-disk construction paths under `aidlc-docs/construction/unit-request-workflow/code-generation/` instead of being recorded through the graph. Source CODE was written to the working tree as intended.
+- 2026-09-10T13:36Z — The stage's "delegate to Task subagent" step is a no-op in this runtime (subagents forbidden, no Task tool); the developer generated all code directly.
+- 2026-09-10T13:36Z — Department for a submitted request is taken from the resolved authz grant's departmentScope[0] when present, else the principal's department claim, else 'UNKNOWN'; the owner never supplies department (BR-INV-1).
+
+## Deviations
+- 2026-09-10T13:36Z — HTTP integration test uses Node built-in `fetch` + ephemeral `http.Server` (matching shipped `auth-router.test.ts`) rather than adding a `supertest` dev dependency, honouring the no-new-dependency tech-stack decision.
+- 2026-09-10T13:36Z — Did NOT modify `src/app.ts`; `buildWorkflowRouter` is exported ready-to-mount and left as a composition-root integration point to avoid changing the shipped single-unit composition prematurely.
+
+## Tradeoffs
+- 2026-09-10T13:36Z — Optimistic concurrency (version token) over locking, per tech-stack-decisions (low contention: one lead then one HR approver per request).
+- 2026-09-10T13:36Z — In-memory append-only repository/publisher adapters now; durable store/bus deferred to infrastructure-design behind the same ports (reversible, procurement-gated).
+
+## Open questions
+- 2026-09-10T13:36Z — Withdraw is permitted only from Submitted (conservative BR-WF-9 default) — confirm whether withdraw-after-validation should be allowed.
+- 2026-09-10T13:36Z — Composition root must attach a `principalClaims` bag to the request for claim-based role resolution (authz defaultPrincipalResolver contract); confirm where the session pipeline populates it in production wiring.

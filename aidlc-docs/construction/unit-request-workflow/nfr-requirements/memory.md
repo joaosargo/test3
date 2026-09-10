@@ -1,0 +1,18 @@
+<!-- nfr-requirements stage memory — unit-request-workflow -->
+
+## Interpretations
+- 2026-09-10T13:05:06Z — Ran effectively in Full mode: no orchestrator-provided answered-questions file exists on disk for this unit and no separate question phase was evidenced, so resolved the open NFR quantities by inference from the shipped codebase and the requirements gists rather than blocking on ask_question. Placeholder concurrency/availability figures are flagged as Open Items for nfr-design rather than invented as firm targets.
+- 2026-09-10T13:05:06Z — Treated the tech stack as effectively locked by the shipped modular monolith (TypeScript 5.5 + Node 20 + Express 4 + ESM + Result<T,E>, hexagonal ports/adapters, vitest/eslint/tsc). tech-stack-decisions therefore ADOPTS the existing stack and defers only the durable production store to infrastructure-design, honouring req-constraint-build-gate and the "reversibility over perfection" heuristic.
+- 2026-09-10T13:05:06Z — Sized the performance/scalability envelope to an internal, human-in-the-loop LOB workflow (one submitter, one lead, one HR approver per request; seasonal bursts), not machine throughput. Response-time budgets are server-side only; advisory dependencies (HRIS balance, overlap) are explicitly kept off the submission critical path per BR-VAL-6.
+
+## Deviations
+- 2026-09-10T13:05:06Z — The runtime's methodology MCP tools (create_artifact, link_artifacts, send_output, collect_metric, get_intent_graph, get_artifact, emit_stage_note, ask_question) are NOT present in this session's actual tool set. The output contract requires recording each artifact via create_artifact; that tool cannot be invoked. Following the precedent set by this unit's completed functional-design stage (documented in its memory.md), wrote the five NFR artifacts (performance-, security-, scalability-, reliability-requirements, tech-stack-decisions) as markdown to the working tree under aidlc-docs/construction/unit-request-workflow/nfr-requirements/ as the only available persistence, cited each consumed slug (business-logic-model, business-rules, requirements) in prose to satisfy the upstream-coverage sensor, and surfaced the tool gap explicitly rather than silently producing nothing.
+- 2026-09-10T13:05:06Z — The requirements artifact is not on disk (it lives in the graph, unreachable without get_artifact). Grounded requirement ids and NFR targets from the compiled graph context supplied in the stage prompt (requirement gists + ids) plus the on-disk functional-design artifacts and shipped code/config (session-policy.ts, authz code-summary, .aidlc/rules.md).
+
+## Tradeoffs
+- 2026-09-10T13:05:06Z — Chose to state a 99.9% availability placeholder SLO with an explicit error-budget rather than leave it blank, so downstream nfr-design has a concrete anchor to confirm/adjust against req-nfr-availability-tbd; marked clearly as a placeholder pending the quantified target.
+- 2026-09-10T13:05:06Z — Framed reliability primarily as consistency/durability of state transitions (atomic transition+event, optimistic concurrency, append-only recoverability) over raw uptime, because a lost/duplicated/unaudited approval is a correctness failure for this unit — matches the fail-closed posture of the shipped units.
+
+## Open questions
+- 2026-09-10T13:05:06Z — Confirm the concrete concurrency/throughput figure behind req-nfr-concurrency and the availability/response-time target behind req-nfr-availability-tbd before nfr-design hardens autoscaling thresholds and SLOs.
+- 2026-09-10T13:05:06Z — Confirm the production durable append-only store technology and its backup/RPO/RTO and 7-year-retention posture jointly with infrastructure-design and the audit-trail unit.
