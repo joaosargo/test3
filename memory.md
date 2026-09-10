@@ -58,4 +58,5 @@ Role: aidlc-delivery-agent (senior engineering manager — team formation, mob c
 
 ## Open questions
 - 2026-09-09T23:47Z — Confirm with human: the wireframes/user-flow depict RETURNED + HR override but requirements remove them for v1. I designed to requirements (no RETURNED, no override). Surfaced as a clarifying question before the gate.
+- 2026-09-09T23:53Z — RESOLVED: human selected "Design to requirements: approve/reject only, no RETURNED state, no HR override (recommended)". Proceeding on that basis; RETURNED and override are fully removed from the refined mockups and interaction spec.
 - 2026-09-09T23:47Z — SLA reminder/escalation is a functional requirement but story-sla-escalation is could-have; I include it in notification/interaction specs as a should-render surface but keep it out of the core queue chrome. Confirm at application-design.
