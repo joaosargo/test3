@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Audit Trail</title>
+    <style>
+      body { font-family: system-ui, sans-serif; margin: 2rem; max-width: 72rem; }
+      section { border: 1px solid #ddd; border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 1.5rem; }
+      h1 { font-size: 1.4rem; }
+      h2 { font-size: 1.1rem; margin-top: 0; }
+      label { display: block; margin: 0.5rem 0 0.15rem; font-weight: 600; }
+      input, select { padding: 0.4rem; box-sizing: border-box; }
+      .filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: 0.75rem; }
+      button { margin-top: 0.75rem; margin-right: 0.5rem; padding: 0.45rem 0.9rem; cursor: pointer; }
+      .hint { color: #555; font-size: 0.85rem; }
+      table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+      th, td { text-align: left; padding: 0.4rem 0.5rem; border-bottom: 1px solid #eee; font-size: 0.85rem; }
+      code { font-family: ui-monospace, monospace; font-size: 0.8rem; }
+      .banner { padding: 0.6rem 0.9rem; border-radius: 6px; margin-top: 0.75rem; }
+      .banner.intact { background: #e6f4ea; color: #1e7e34; }
+      .banner.violated { background: #fde8e8; color: #b02a37; }
+      .banner.unknown { background: #eef; color: #333; }
+      .hidden { display: none; }
+    </style>
+  </head>
+  <body data-testid="audit-page">
+    <h1>Audit Trail</h1>
+    <p class="hint">
+      Read-only compliance view of the immutable vacation-request audit trail.
+      Records cannot be edited or deleted here — the trail is append-only by
+      design. Every field shown is a pseudonymous id; no personal data is stored.
+    </p>
+
+    <!-- Filter bar — read filters only, all optional (frontend-components) -->
+    <section data-testid="audit-filter-section">
+      <h2>Filter</h2>
+      <form class="filters" data-testid="audit-filter-bar">
+        <div>
+          <label for="requestId">Request id</label>
+          <input type="text" id="requestId" data-testid="audit-filter-request-id" placeholder="req-…" />
+        </div>
+        <div>
+          <label for="department">Department</label>
+          <input type="text" id="department" data-testid="audit-filter-department" />
+        </div>
+        <div>
+          <label for="eventType">Event type</label>
+          <select id="eventType" data-testid="audit-filter-event-type">
+            <option value="">Any</option>
+            <option value="RequestSubmitted">RequestSubmitted</option>
+            <option value="RequestValidated">RequestValidated</option>
+            <option value="RequestApproved">RequestApproved</option>
+            <option value="RequestRejected">RequestRejected</option>
+            <option value="RequestWithdrawn">RequestWithdrawn</option>
+          </select>
+        </div>
+        <div>
+          <label for="actorId">Actor id</label>
+          <input type="text" id="actorId" data-testid="audit-filter-actor-id" />
+        </div>
+      </form>
+      <button type="button" data-testid="audit-load-button">Load trail</button>
+      <button type="button" data-testid="audit-verify-button">Verify chain</button>
+      <span class="hint" data-testid="audit-date-hint"></span>
+    </section>
+
+    <!-- Integrity banner — result of verifyChain -->
+    <div class="banner unknown" data-testid="audit-integrity-banner">
+      Integrity: not yet checked.
+    </div>
+
+    <!-- Records table — read-only, append order -->
+    <section data-testid="audit-records-section">
+      <h2>Records</h2>
+      <p class="hidden" data-testid="audit-empty-state">No audit records for this filter.</p>
+      <p class="hidden" data-testid="audit-error" role="alert"></p>
+      <table data-testid="audit-record-table">
+        <thead>
+          <tr>
+            <th>Occurred</th>
+            <th>Event</th>
+            <th>Resulting state</th>
+            <th>Actor</th>
+            <th>Department</th>
+            <th>Hash</th>
+          </tr>
+        </thead>
+        <tbody data-testid="audit-record-table-body"></tbody>
+      </table>
+    </section>
+
+    <script type="module">
+      // Thin fetch-and-render logic; mirrors the lightweight posture of
+      // requests.html rather than introducing a SPA framework.
+      const $ = (sel) => document.querySelector(sel);
+      const bannerEl = $('[data-testid="audit-integrity-banner"]');
+      const bodyEl = $('[data-testid="audit-record-table-body"]');
+      const emptyEl = $('[data-testid="audit-empty-state"]');
+      const errorEl = $('[data-testid="audit-error"]');
+
+      function currentRequestId() {
+        return $('[data-testid="audit-filter-request-id"]').value.trim();
+      }
+
+      function queryString() {
+        const params = new URLSearchParams();
+        const dep = $('[data-testid="audit-filter-department"]').value.trim();
+        const type = $('[data-testid="audit-filter-event-type"]').value;
+        const actor = $('[data-testid="audit-filter-actor-id"]').value.trim();
+        if (dep) params.set('department', dep);
+        if (type) params.set('eventType', type);
+        if (actor) params.set('actorId', actor);
+        return params.toString();
+      }
+
+      function showError(code) {
+        errorEl.textContent = `Unable to load audit records (${code}).`;
+        errorEl.classList.remove('hidden');
+      }
+
+      function renderRecords(records) {
+        errorEl.classList.add('hidden');
+        bodyEl.innerHTML = '';
+        emptyEl.classList.toggle('hidden', records.length > 0);
+        for (const r of records) {
+          const tr = document.createElement('tr');
+          tr.setAttribute('data-testid', `audit-record-row-${r.auditId}`);
+          tr.innerHTML =
+            `<td>${new Date(r.occurredAtMs).toISOString()}</td>` +
+            `<td>${r.eventType}</td>` +
+            `<td>${r.resultingState}${r.rejectedStage ? ' @ ' + r.rejectedStage : ''}</td>` +
+            `<td><code>${r.actorId}</code></td>` +
+            `<td>${r.department}</td>` +
+            `<td><code>${r.hash.slice(0, 12)}…</code></td>`;
+          bodyEl.appendChild(tr);
+        }
+      }
+
+      async function load() {
+        const requestId = currentRequestId();
+        const url = requestId
+          ? `/audit/requests/${encodeURIComponent(requestId)}`
+          : `/audit?${queryString()}`;
+        const res = await fetch(url, { headers: { accept: 'application/json' } });
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          showError(body?.error?.code ?? res.status);
+          return;
+        }
+        const body = await res.json();
+        renderRecords(body.records ?? []);
+      }
+
+      async function verify() {
+        const requestId = currentRequestId();
+        if (!requestId) {
+          bannerEl.className = 'banner unknown';
+          bannerEl.textContent = 'Enter a request id to verify its chain.';
+          return;
+        }
+        const res = await fetch(
+          `/audit/requests/${encodeURIComponent(requestId)}/verify`,
+          { method: 'POST', headers: { accept: 'application/json' } },
+        );
+        const body = await res.json().catch(() => ({}));
+        if (body.integrity === 'intact') {
+          bannerEl.className = 'banner intact';
+          bannerEl.textContent = 'Integrity: chain intact.';
+        } else if (body.integrity === 'violated') {
+          bannerEl.className = 'banner violated';
+          bannerEl.textContent = `Integrity violation at record ${body.auditId} (${body.kind}).`;
+        } else {
+          bannerEl.className = 'banner unknown';
+          bannerEl.textContent = `Integrity check unavailable (${body?.error?.code ?? res.status}).`;
+        }
+      }
+
+      $('[data-testid="audit-load-button"]').addEventListener('click', load);
+      $('[data-testid="audit-verify-button"]').addEventListener('click', verify);
+    </script>
+  </body>
+</html>

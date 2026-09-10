@@ -67,3 +67,40 @@ npm run build       # emit dist/
 Secrets and IdP config are injected from the environment at runtime (never
 committed). See `.env.example`. The in-memory session store is for local dev
 and tests; production wires a Redis-class shared cache behind `SessionStore`.
+
+## Module: `unit-audit-trail` (`src/audit/`)
+
+The Immutable Audit Trail is an in-process module of the modular monolith and
+the compliance system-of-record. It is a **choreography event sink**: it
+subscribes to the workflow's published `WorkflowEvent` stream via the shipped
+`EventPublisher` port and appends exactly one immutable, hash-chained
+`AuditRecord` per accepted transition. It never calls the workflow unit back and
+never mutates business state.
+
+Design grounding: `business-logic-model`, `domain-entities`, `business-rules`
+(`BR-AUD-1..9`) for `unit-audit-trail`; satisfies `req-immutable-audit-trail`,
+`req-constraint-append-only-store`, `req-nfr-audit-retention`, and
+`req-nfr-security-pii`.
+
+Key properties:
+
+- **Append-only** — the `AuditStore` port exposes `append` + reads only; no
+  `update`/`delete` exists at the contract level (`req-constraint-append-only-store`).
+- **Tamper-evident** — each record carries the previous record's hash
+  (per-`requestId` chain); `verifyChain` proves the trail was not altered.
+- **Seven-year retention** — every record stamps `retainUntilMs`; no early-purge
+  code path exists (`req-nfr-audit-retention`).
+- **PII-free by construction** — records hold only the pseudonymous ids the
+  event already carries; no email, name, or free-text reason (`BR-AUD-8`).
+
+Guarded read-only endpoints (mount via `mountAuditRoutes`; wire ingest via
+`subscribeAuditTrail`):
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/audit/requests/:requestId` | Ordered audit trail for one request |
+| POST | `/audit/requests/:requestId/verify` | Integrity check (`verifyChain`) |
+| GET | `/audit` | Filtered query (`department`, `eventType`, `actorId`, `from`, `to`) |
+
+Reads are guarded by `requireSession` → `requirePermission`; unauthorized access
+fails closed with `401`/`403`. The auditor inspection UI is `public/audit.html`.
